@@ -67,14 +67,15 @@ impl<'a, T: 'a> From<&'a mut T> for WriteRef<'a, T> {
 /// ```
 /// # extern crate write_ref;
 /// # use write_ref::WriteSlice;
-/// fn copy<T>(input: &[T], output: impl Into<WriteSlice<T>>) {
+/// fn copy<'a, T: Clone + 'a>(input: &[T], output: impl Into<WriteSlice<'a, T>>) {
+///     let mut output = output.into();
 ///     for (i, val) in input.iter().enumerate() {
-///         output.write(i, val);
+///         output.write(i, val.clone());
 ///     }
 /// }
 /// fn main() {
 ///     let input = [1, 2, 3];
-///     let output = [7, 1, 9];
+///     let mut output = [7, 1, 9];
 ///     copy(&input, &mut output as &mut [_]);
 ///     assert_eq!(input, output);
 /// }
