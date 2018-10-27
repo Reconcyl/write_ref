@@ -1,107 +1,99 @@
-//! Many functions in Rust's standard library, such as `char::encode_utf8`,
-//! take a mutable reference that they only ever write to.
+#![deny(missing_docs)]
+
+//! Write-only references.
+//!
+//! Many functions in Rust's standard library, such as `char::encode_utf8`, take
+//! a mutable reference that they only ever write to.
 //!
 //! This crate provides a way to express this guarantee:
 //!
-//! - The `WriteRef` trait provides a single method, `write`. It is implemented
-//! only for `&mut T`. By taking a generic parameter with the `WriteRef` trait
-//! bound, a function allows callers to pass in mutable references, but
-//! guarantees that it can only write to them.
-//! - The `WriteSlice` trait works similarly, being implemented only for
-//! `&mut [T]`. It allows functions to modify individual elements of the slice.
+//! - `WriteRef<T>` provides a single method, `write`. By taking this as a
+//!   parameter, a function guarantees that it will only ever write to it.
+//! - `WriteSlice<T>` works similarly, but it allows writing only to individual
+//!   elements. This is useful for functions that write to a provided buffer,
+//!   such as `char::encode_utf8`.
+//!
+//! Most functions should not take a `WriteRef` or `WriteSlice` directly;
+//! instead, they should take an `impl Into<WriteRef<'a, T>>` so that callers
+//! can pass in a `&mut T`.
 
-#![deny(missing_docs)]
-
-mod sealed {
-    pub trait Sealed {}
-    impl<'a, T: 'a> Sealed for &'a mut T {}
-
-    pub trait SealedSlice {}
-    impl<'a, T: 'a> SealedSlice for &'a mut [T] {}
-}
+use std::convert::From;
 
 /// Represents a write-only reference.
 ///
-/// This trait is implemented for all `&mut T`. To provide a guarantee that your
-/// function will only write to a reference, use this trait as a generic bound.
-///
-/// This trait is sealed, so you cannot add your own implementations.
+/// It is generally advised to take an `impl Into<WriteRef>` instead of a
+/// `WriteRef` itself in APIs so that callers can pass in a mutable reference.
 ///
 /// # Examples
 ///
 /// ```
 /// # extern crate write_ref;
 /// # use write_ref::WriteRef;
-/// use std::default::Default;
-///
-/// fn clear<T: Default>(mut r: impl WriteRef<To=T>) {
-///     r.write(Default::default());
+/// # fn main() {
+/// let mut a = 3;
+/// {
+///     let mut a_ref = WriteRef::from(&mut a);
+///     a_ref.write(0);
 /// }
-/// 
-/// fn main() {
-///     let mut counter = 4;
-///     clear(&mut counter);
-///     assert_eq!(counter, 0);
-/// }
+/// assert_eq!(a, 0);
+/// # }
 /// ```
-pub trait WriteRef: sealed::Sealed {
-    /// The inner type.
-    type To;
-    /// Write a value of type `To` to this reference.
-    fn write(&mut self, Self::To);
-}
+pub struct WriteRef<'a, T: 'a>(&'a mut T);
 
-/// The sole implementation of `WriteRef`.
-impl<'a, T: 'a> WriteRef for &'a mut T {
-    type To = T;
-    fn write(&mut self, t: T) {
-        **self = t;
+impl<'a, T: 'a> WriteRef<'a, T> {
+    /// Write a value to this reference.
+    pub fn write(&mut self, val: T) {
+        *self.0 = val;
     }
 }
 
-/// Represents a write-only slice.
+impl<'a, T: 'a> From<&'a mut T> for WriteRef<'a, T> {
+    fn from(inner: &'a mut T) -> Self {
+        WriteRef(inner)
+    }
+}
+
+/// Represents a write-only buffer.
 ///
-/// This trait is implemented for all `&mut [T]`. To provide a guarantee that
-/// your function will only write to a slice, use this trait as a generic bound.
+/// You only write to individual elements of this slice; you can't modify the
+/// slice itself or read from its elements.
 ///
-/// This trait is sealed, so you cannot add your own implementations.
+/// It is generally advised to take an `impl Into<WriteSlice>` instead of a
+/// `WriteSlice` itself in APIs so that callers can pass in a a mutable
+/// reference.
 ///
 /// # Examples
 ///
 /// ```
 /// # extern crate write_ref;
 /// # use write_ref::WriteSlice;
-///
-/// fn copy_buffer<T: Copy>(input: &[T], mut output: impl WriteSlice<Of=T>) {
+/// fn copy<T>(input: &[T], output: impl Into<WriteSlice<T>>) {
 ///     for (i, val) in input.iter().enumerate() {
-///         output.write_elem(i, *val);
+///         output.write(i, val);
 ///     }
 /// }
-/// 
 /// fn main() {
 ///     let input = [1, 2, 3];
-///     let mut output = [7, 1, 9];
-///
-///     copy_buffer(&input, &mut output as &mut [_]);
-///
+///     let output = [7, 1, 9];
+///     copy(&input, &mut output as &mut [_]);
 ///     assert_eq!(input, output);
 /// }
 /// ```
-pub trait WriteSlice: sealed::SealedSlice {
-    /// The elements of the write-only slice.
-    type Of;
-    /// Write to an element of the slice.
+pub struct WriteSlice<'a, T: 'a>(&'a mut [T]);
+
+impl<'a, T: 'a> WriteSlice<'a, T> {
+    /// Write a value to an element of this slice.
     ///
     /// # Panics
     ///
-    /// Panics if the index is out-of-bounds.
-    fn write_elem(&mut self, usize, Self::Of);
+    /// Panics if `idx` is out of bounds.
+    pub fn write(&mut self, idx: usize, val: T) {
+        self.0[idx] = val;
+    }
 }
 
-/// The sole implementation of `WriteSlice`.
-impl<'a, T: 'a> WriteSlice for &'a mut [T] {
-    type Of = T;
-    fn write_elem(&mut self, idx: usize, t: T) {
-        self[idx] = t;
+impl<'a, T: 'a> From<&'a mut [T]> for WriteSlice<'a, T> {
+    fn from(inner: &'a mut [T]) -> Self {
+        WriteSlice(inner)
     }
 }
