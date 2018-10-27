@@ -8,7 +8,7 @@
 //! bound, a function allows callers to pass in mutable references, but
 //! guarantees that it can only write to them.
 //! - The `WriteSlice` trait works similarly, being implemented only for
-//! `&mut &
+//! `&mut [T]`. It allows functions to modify individual elements of the slice.
 
 #![deny(missing_docs)]
 
@@ -27,7 +27,7 @@ mod sealed {
 ///
 /// This trait is sealed, so you cannot add your own implementations.
 ///
-/// Example:
+/// # Examples
 ///
 /// ```
 /// # extern crate write_ref;
@@ -66,7 +66,7 @@ impl<'a, T: 'a> WriteRef for &'a mut T {
 ///
 /// This trait is sealed, so you cannot add your own implementations.
 ///
-/// Example:
+/// # Examples
 ///
 /// ```
 /// # extern crate write_ref;
@@ -82,7 +82,7 @@ impl<'a, T: 'a> WriteRef for &'a mut T {
 ///     let input = [1, 2, 3];
 ///     let mut output = [7, 1, 9];
 ///
-///     copy_buffer(&input, &mut output);
+///     copy_buffer(&input, &mut output as &mut [_]);
 ///
 ///     assert_eq!(input, output);
 /// }
@@ -90,7 +90,11 @@ impl<'a, T: 'a> WriteRef for &'a mut T {
 pub trait WriteSlice: sealed::SealedSlice {
     /// The elements of the write-only slice.
     type Of;
-    /// Write to an element of the slice. Panic if the index is out-of-bounds.
+    /// Write to an element of the slice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is out-of-bounds.
     fn write_elem(&mut self, usize, Self::Of);
 }
 
