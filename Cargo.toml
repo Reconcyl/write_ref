@@ -4,5 +4,7 @@ version = "0.1.0"
 authors = ["Reconcyl"]
 license = "Unlicense"
 description = "Support for write-only references and slices."
+homepage = "https://github.com/Reconcyl/write_ref"
+repository = "https://github.com/Reconcyl/write_ref"
 
 [dependencies]
