@@ -1,6 +1,6 @@
 [package]
 name = "write_ref"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Reconcyl"]
 license = "Unlicense"
 description = "Support for write-only references and slices."
